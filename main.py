@@ -75,9 +75,12 @@ def main(startTime: str, endTime: str, fileList: List):
 
 
 def printStatstics(responseBuffer: Dict, totalResponse: int):
-    for ip in responseBuffer.keys():
-        errors = responseBuffer[ip]/totalResponse * 100
-        print("{} got {:0.4f}% 5XX errors".format(ip,errors))
+    if not responseBuffer.keys():
+        print(" No 5xx errors were found")
+    else:
+        for ip in responseBuffer.keys():
+            errors = responseBuffer[ip]/totalResponse * 100
+            print("{} got {:0.4f}% 5XX errors".format(ip,errors))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process logs file based on given timestamps")
