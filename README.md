@@ -19,3 +19,5 @@ External dependencies:
 
 Assumptions:   
     The Primary assumtion of the programs is that the logs files should by thier timestamp values.
+
+Note: The starting and ending times should be in standard apache/nginx time format 
