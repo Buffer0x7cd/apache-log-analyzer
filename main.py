@@ -2,10 +2,11 @@ from dateutil.parser import parse
 from datetime import datetime
 import sys
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, List
+import argparse
 
-
-RESPONSE_CODE = ["301", "302", "303", "304", "305"]
+CODE_START = 500
+CODE_END = 600
 
 def strToDate(timestampString: str) -> datetime:
     timestamp = parse(timestampString[:11] + " " + timestampString[12:])
@@ -19,7 +20,8 @@ def processString(line: str)-> datetime:
 
 
 
-def findPosition(file, startTime: datetime):
+def findPosition(file, startTime: datetime)->int:
+    ''' Find the starting offset in a file by comparing timestamps using binary'''
     file.seek(0, 2)
     size = file.tell()
     if size <= 0:
@@ -49,33 +51,41 @@ def findPosition(file, startTime: datetime):
     return file.tell()
 
 
-def main(startTime: str, endTime: str):
-    with open('logs', 'r') as file:
-        startTime = strToDate(startTime)
-        endTime = strToDate(endTime)
-        fileOffset = findPosition(file, startTime)
-        file.seek(fileOffset)
-        responseBuffer = defaultdict(int)
-        totalResponse = 0
-        for line in file:
-            if endTime  > processString(line):
-                totalResponse += 1
-                line = line.split(" ")
-                ip = line[0]
-                currentResponse = line[8]
-                if currentResponse in RESPONSE_CODE:
-                    responseBuffer[ip] += 1
-            else:
-                break
-        printStatstics(responseBuffer, totalResponse, startTime, endTime)
+def main(startTime: str, endTime: str, fileList: List):
+    startTime = strToDate(startTime)
+    endTime = strToDate(endTime)
+    totalResponse = 0
+    responseBuffer = defaultdict(int)
+    for fileName in fileList:
+        with open(fileName, 'r') as file:
+            fileOffset = findPosition(file, startTime)
+            file.seek(fileOffset)
+            for line in file:
+                if endTime  > processString(line):
+                    totalResponse += 1
+                    line = line.split(" ")
+                    ip = line[0]
+                    currentResponse = line[8]
+                    if int(currentResponse) in range(CODE_START, CODE_END):
+                        responseBuffer[ip] += 1
+                else:
+                    break
+    print("Between time {} and time {}".format(startTime, endTime))
+    printStatstics(responseBuffer, totalResponse)
 
-def printStatstics(responseBuffer: Dict, totalResponse: int, startTime: datetime, endTime: datetime):
+
+def printStatstics(responseBuffer: Dict, totalResponse: int):
     for ip in responseBuffer.keys():
         errors = responseBuffer[ip]/totalResponse * 100
-        print("Between time {} and time {}".format(startTime, endTime))
-        print("{} got {:0.4f}% 3XX errors".format(ip,errors))
+        print("{} got {:0.4f}% 5XX errors".format(ip,errors))
 
 if __name__ == "__main__":
-    startTime = sys.argv[1]
-    endTime = sys.argv[2]
-    main(startTime, endTime)
+    parser = argparse.ArgumentParser(description="Process logs file based on given timestamps")
+    parser.add_argument("starttime", help="The starting timestamp to be used for filtering logs", metavar="startTime")
+    parser.add_argument("endtime", help="The ending timestamp to be used for filtering logs", metavar="endTime")
+    parser.add_argument("files", nargs="+", help="list of  files contaning the log data")
+    args = parser.parse_args()
+    startTime = args.starttime
+    endTime = args.endtime
+    fileList = args.files
+    main(startTime, endTime, fileList)
